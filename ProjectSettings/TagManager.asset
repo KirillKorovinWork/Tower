@@ -7,6 +7,7 @@ TagManager:
   - Tank
   - Cube
   - Wall
+  - TankHead
   layers:
   - Default
   - TransparentFX

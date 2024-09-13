@@ -14,11 +14,10 @@ public abstract class TeamObject : MonoBehaviour
         Yellow
     }
 
-    public Team team = Team.None; // Команда, к которой принадлежит объект
+    public Team team = Team.None;
 
-    [SerializeField] private Renderer[] teamRenderers; // Массив рендереров, для которых нужно менять цвет
+    [SerializeField] private Renderer[] teamRenderers; 
 
-    // Метод для изменения цвета в зависимости от команды
     public virtual void SetTeamColor()
     {
         Color teamColor = GetColorByTeam(team);
@@ -28,8 +27,6 @@ public abstract class TeamObject : MonoBehaviour
             rend.material.color = teamColor;
         }
     }
-
-    // Метод для получения цвета по команде
     protected Color GetColorByTeam(Team team)
     {
         switch (team)
@@ -46,8 +43,6 @@ public abstract class TeamObject : MonoBehaviour
                 return Color.white;
         }
     }
-
-
     public virtual void Health(int damage) 
     {
         health -= damage;

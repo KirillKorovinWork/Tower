@@ -59,33 +59,47 @@ public class Tank : TeamObject
 
         if (Physics.Raycast(transform.position, transform.forward, out hit, rayLenght))
         {
-            if (hit.collider.CompareTag("Wall") || (hit.collider.CompareTag("Cube") && hit.collider.GetComponent<Cube>().team != team))
+            if ((hit.collider.CompareTag("Cube") && hit.collider.GetComponent<Cube>().team != team))
+            {
+                TurnAround();
+            }
+
+            if (hit.collider.CompareTag("Wall")) 
             {
                 TurnAround();
             }
         }
-        // Луч под углом 30 градусов вправо
+        // Луч под углом 45 градусов вправо
         RaycastHit hitRight;
         Vector3 rightDirection = Quaternion.Euler(0, 45f, 0) * transform.forward;
         Debug.DrawRay(transform.position, rightDirection * rayLenght, Color.green);
         if (Physics.Raycast(transform.position, rightDirection, out hitRight, rayLenght))
         {
-            if (hitRight.collider.CompareTag("Wall") ||
-                (hitRight.collider.CompareTag("Cube") && hitRight.collider.GetComponent<Cube>().team != team))
+
+            if (hitRight.collider.CompareTag("Cube") && hitRight.collider.GetComponent<Cube>().team != team)
+            {
+                TurnAround();
+
+            }
+            if (hitRight.collider.CompareTag("Wall"))
             {
                 TurnAround();
                 return;
             }
         }
 
-        // Луч под углом 30 градусов влево
+        // Луч под углом 45 градусов влево
         RaycastHit hitLeft;
         Vector3 leftDirection = Quaternion.Euler(0, -45f, 0) * transform.forward;
         Debug.DrawRay(transform.position, leftDirection * rayLenght, Color.green);
         if (Physics.Raycast(transform.position, leftDirection, out hitLeft, rayLenght))
         {
-            if (hitLeft.collider.CompareTag("Wall") ||
-                (hitLeft.collider.CompareTag("Cube") && hitLeft.collider.GetComponent<Cube>().team != team))
+
+            if (hitLeft.collider.CompareTag("Cube") && hitLeft.collider.GetComponent<Cube>().team != team)
+            {
+                TurnAround();
+            }
+            if (hitLeft.collider.CompareTag("Wall"))
             {
                 TurnAround();
                 return;

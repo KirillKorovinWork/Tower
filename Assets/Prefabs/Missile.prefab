@@ -63,7 +63,7 @@ PrefabInstance:
     - target: {fileID: -7635826562936255635, guid: 83234a87c40f0ac48ab852b71d726f9b, type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 
-      objectReference: {fileID: 2100000, guid: 325efcca5c06df349a8e91e9ad026474, type: 2}
+      objectReference: {fileID: 2100000, guid: fb4c22d3b47c21b4ea33b345272d7fbb, type: 2}
     - target: {fileID: 919132149155446097, guid: 83234a87c40f0ac48ab852b71d726f9b, type: 3}
       propertyPath: m_Name
       value: Missile
@@ -102,6 +102,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 83234a87c40f0ac48ab852b71d726f9b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 4917603706858060625}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 83234a87c40f0ac48ab852b71d726f9b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4692325181158159205}
   m_SourcePrefab: {fileID: 100100000, guid: 83234a87c40f0ac48ab852b71d726f9b, type: 3}
 --- !u!1 &2989538000725066351 stripped
 GameObject:
@@ -124,6 +127,7 @@ MonoBehaviour:
   rotationSpeed: 2
   lifetime: 5
   explosionPrefab: {fileID: 1828176872806910, guid: 64891a0eb28db934898420d80ca07cb3, type: 3}
+  explosionSound: {fileID: 2054984903868877237, guid: 6b6c280a6fb25c14a8852049a9d67a25, type: 3}
 --- !u!65 &4917603706858060625
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -145,3 +149,30 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.3, y: 0.3, z: 0.5}
   m_Center: {x: 0.05, y: 0.05, z: -0.04}
+--- !u!54 &4692325181158159205
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2989538000725066351}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 1
