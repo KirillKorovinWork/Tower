@@ -1,9 +1,11 @@
 using UnityEngine;
 using TMPro;
+using System.Collections;
 
 public class Tank : TeamObject
 {
-    public TextMeshProUGUI tankHealthText;
+    public TextMeshProUGUI healthText;
+
     public float speed = 5f;
     public float speedLessHP = 2f;
     public float rotationSpeed = 180f;
@@ -14,7 +16,12 @@ public class Tank : TeamObject
     private int capturedCubes = 0;
     private int cubesToCapture;
     private bool isMoving = true;
-    
+
+    public float sinkingSpeed = 0.5f; // Скорость опускания танка
+    public float sinkingDepth = -1f; // Глубина, на которой танк будет уничтожен
+
+    private bool isSinking = false; // Флаг для проверки, начал ли танк опускатьс
+
     void Start()
     {
         SetTeamColor();
@@ -28,22 +35,27 @@ public class Tank : TeamObject
             MoveForward();
             DetectObstacle();
 
-            tankHealthText.text = health.ToString(); 
+            healthText.text = health.ToString();
         }
 
-        if (destroyed) 
+        if (destroyed)
         {
-            tankHealthText.text = "X";
+            healthText.text = "X";
+            if (!isSinking) 
+            {
+                StartCoroutine(SinkAndDestroy());
+            }
+            
         }
     }
 
     private void MoveForward()
     {
-        if (health < 50) 
+        if (health < 50)
         {
             transform.Translate(Vector3.forward * speed * Time.deltaTime);
         }
-        else 
+        else
         {
             transform.Translate(Vector3.forward * speed * Time.deltaTime);
         }
@@ -64,7 +76,7 @@ public class Tank : TeamObject
                 TurnAround();
             }
 
-            if (hit.collider.CompareTag("Wall")) 
+            if (hit.collider.CompareTag("Wall"))
             {
                 TurnAround();
             }
@@ -111,7 +123,7 @@ public class Tank : TeamObject
     {
         isMoving = false;
         // Вращение на 180 градусов в произвольную сторону
-        float rotationAngle = Random.Range(0, 2) == 0 ? Random.Range(110f,250f) : Random.Range(-110f, -250f);
+        float rotationAngle = Random.Range(0, 2) == 0 ? Random.Range(110f, 250f) : Random.Range(-110f, -250f);
         transform.Rotate(Vector3.up, rotationAngle);
         isMoving = true;
     }
@@ -136,6 +148,22 @@ public class Tank : TeamObject
                 }
             }
         }
+    }
+
+    private IEnumerator SinkAndDestroy()
+    {
+        isSinking = true; // Устанавливаем флаг, что процесс опускания начат
+
+        yield return new WaitForSeconds(5);
+
+        // Опускаем танк до заданной глубины
+        while (transform.position.y > sinkingDepth)
+        {
+            transform.position += Vector3.down * sinkingSpeed * Time.deltaTime;
+            yield return null; // Ждем один кадр, чтобы сделать опускание плавным
+        }
+
+        Destroy(gameObject); // Уничтожаем танк после опускания
     }
 }
 

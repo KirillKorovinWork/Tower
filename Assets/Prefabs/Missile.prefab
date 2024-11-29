@@ -126,6 +126,8 @@ MonoBehaviour:
   speed: 20
   rotationSpeed: 2
   lifetime: 5
+  healthDamageMin: 10
+  healthDamageMax: 20
   explosionPrefab: {fileID: 1828176872806910, guid: 64891a0eb28db934898420d80ca07cb3, type: 3}
   explosionSound: {fileID: 2054984903868877237, guid: 6b6c280a6fb25c14a8852049a9d67a25, type: 3}
 --- !u!65 &4917603706858060625

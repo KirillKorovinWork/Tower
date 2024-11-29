@@ -75,24 +75,27 @@ public class InfoManager : MonoBehaviour
 
     private void CheckVictoryConditions()
     {
-        int remainingRedTanks = GetRemainingTanks(TeamObject.Team.Red);
-        int remainingBlueTanks = GetRemainingTanks(TeamObject.Team.Blue);
-        int remainingGreenTanks = GetRemainingTanks(TeamObject.Team.Green);
-        int remainingYellowTanks = GetRemainingTanks(TeamObject.Team.Yellow);
+        int remainingRedObjects = GetRemainingObjects(TeamObject.Team.Red);
+        int remainingBlueObjects = GetRemainingObjects(TeamObject.Team.Blue);
+        int remainingGreenObjects = GetRemainingObjects(TeamObject.Team.Green);
+        int remainingYellowObjects = GetRemainingObjects(TeamObject.Team.Yellow);
 
         // Проверка, остался ли последний танк
-        if ((remainingRedTanks > 0 && remainingBlueTanks == 0 && remainingGreenTanks == 0 && remainingYellowTanks == 0) ||
-            (remainingBlueTanks > 0 && remainingRedTanks == 0 && remainingGreenTanks == 0 && remainingYellowTanks == 0) ||
-            (remainingGreenTanks > 0 && remainingRedTanks == 0 && remainingBlueTanks == 0 && remainingYellowTanks == 0) ||
-            (remainingYellowTanks > 0 && remainingRedTanks == 0 && remainingBlueTanks == 0 && remainingGreenTanks == 0))
+        if ((remainingRedObjects > 0 && remainingBlueObjects == 0 && remainingGreenObjects == 0 && remainingYellowObjects == 0) ||
+            (remainingBlueObjects > 0 && remainingRedObjects == 0 && remainingGreenObjects == 0 && remainingYellowObjects == 0) ||
+            (remainingGreenObjects > 0 && remainingRedObjects == 0 && remainingBlueObjects == 0 && remainingYellowObjects == 0) ||
+            (remainingYellowObjects > 0 && remainingRedObjects == 0 && remainingBlueObjects == 0 && remainingGreenObjects == 0))
         {
-            EndGameWithVictory("The last tank standing wins!");
+            EndGameWithVictory("The last team standing wins!");
         }
     }
 
-    private int GetRemainingTanks(TeamObject.Team team)
+    private int GetRemainingObjects(TeamObject.Team team)
     {
-        return FindObjectsOfType<Tank>().Count(tank => tank.team == team && !tank.destroyed);
+        return FindObjectsOfType<TeamObject>().Count(obj =>
+            obj.team == team &&
+            !obj.destroyed &&
+            !(obj is Cube)); // Исключаем объекты типа Cube
     }
 
     private void DetermineVictoryByPoints()
@@ -124,8 +127,8 @@ public class InfoManager : MonoBehaviour
     {
         infoPanel.gameObject.SetActive(true);
         victoryText.gameObject.SetActive(true);
-        yield return new WaitForSeconds(5f); 
+        yield return new WaitForSeconds(5f);
+        infoPanel.gameObject.SetActive(false);
+        victoryText.gameObject.SetActive(false);
     }
-
-    
 }

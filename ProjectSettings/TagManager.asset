@@ -8,6 +8,8 @@ TagManager:
   - Cube
   - Wall
   - TankHead
+  - Obstacle
+  - TeamEntity
   layers:
   - Default
   - TransparentFX

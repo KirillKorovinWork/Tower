@@ -5,11 +5,12 @@ public class Missile : MonoBehaviour
     public float speed = 35f;
     public float rotationSpeed = 2f;
     public float lifetime = 5f;
+    public int healthDamageMin = 1;
+    public int healthDamageMax = 20;
 
     public GameObject explosionPrefab;
     public GameObject explosionSound;
     private Transform target;
-
 
     private void Start()
     {
@@ -35,13 +36,13 @@ public class Missile : MonoBehaviour
     {
         if (other.transform == target || other.CompareTag("Wall"))
         {
-            GameObject explosion = Instantiate(explosionPrefab, transform.position, Quaternion.identity);
-            GameObject explosionSFX = Instantiate(explosionSound, transform.position, Quaternion.identity);
+            GameObject explosion = Instantiate(explosionPrefab, transform.position, Quaternion.identity); 
             Destroy(explosion, 2.0f);
+            GameObject explosionSFX = Instantiate(explosionSound, transform.position, Quaternion.identity);
             Destroy(explosionSFX, 2.0f);
             if (other.transform == target) 
             {
-                other.gameObject.GetComponent<Tank>().Health(Random.Range(1, 21));
+                other.gameObject.GetComponent<TeamObject>().Health(Random.Range(healthDamageMin, healthDamageMax));
             }
             Destroy(gameObject);
         }
