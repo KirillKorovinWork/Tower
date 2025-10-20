@@ -6,6 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/Square.unity
-    guid: 805bb7e6cec95b64995376b05f892fd1
+    path: Assets/Scenes/Menu.unity
+    guid: c63e5f934074a0941af07bd0c83d4779
+  - enabled: 1
+    path: Assets/Scenes/LineToLine.unity
+    guid: fc2c58b11a737fa459610eb428650f43
+  - enabled: 1
+    path: Assets/Scenes/LineToLine 1.unity
+    guid: e4b32e73bf7a82e4991a9ea037358587
   m_configObjects: {}

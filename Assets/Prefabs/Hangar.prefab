@@ -279,6 +279,8 @@ GameObject:
   m_Component:
   - component: {fileID: 5656187087860545466}
   - component: {fileID: 150884421848347112}
+  - component: {fileID: -7584520143006090325}
+  - component: {fileID: 3871987379643269721}
   - component: {fileID: 8524344468935960717}
   - component: {fileID: 5509010556329362581}
   m_Layer: 7
@@ -321,18 +323,51 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   health: 100
   destroyed: 0
-  team: 0
+  team: 1
   teamRenderers:
   - {fileID: 4315253699916303175}
   healthText: {fileID: 5943713011350210971}
   tanks:
   - tankPrefab: {fileID: 1933573286137061543, guid: 6d7f3213446c1b94cb768e70fadcd35c, type: 3}
-    spawnChance: 70
+    spawnChance: 50
   - tankPrefab: {fileID: 4465128199879046137, guid: 887c43810adf9354194353007312f981, type: 3}
-    spawnChance: 30
+    spawnChance: 25
+  - tankPrefab: {fileID: 5963951057939477205, guid: b2cc5700d0753a644a70ec28b962f4ce, type: 3}
+    spawnChance: 10
+  - tankPrefab: {fileID: 7871761197192252188, guid: 77753214670659c45823b357ac6ff468, type: 3}
+    spawnChance: 15
   spawnPoint: {fileID: 8813150613210278925}
-  spawnInterval: 10
-  maxTanksToSpawn: 10
+  spawnInterval: 15
+  maxTanksToSpawn: 50
+--- !u!114 &-7584520143006090325
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8507426204813137679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96bae83667b3eb744bb34437efe18490, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  defenseRadius: 5
+  enemy: {fileID: 0}
+--- !u!114 &3871987379643269721
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8507426204813137679}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4d8d83e5b498814380f7bd146f37936, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerTeam: 0
+  attackIntervalMin: 10
+  attackIntervalMax: 50
 --- !u!65 &8524344468935960717
 BoxCollider:
   m_ObjectHideFlags: 0

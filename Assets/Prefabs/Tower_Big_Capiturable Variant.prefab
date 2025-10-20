@@ -267,7 +267,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1971449147502000925, guid: f4a94efbf476595478b19390bbd97bbd, type: 3}
       propertyPath: health
-      value: 50
+      value: 500
       objectReference: {fileID: 0}
     - target: {fileID: 1971449147502000925, guid: f4a94efbf476595478b19390bbd97bbd, type: 3}
       propertyPath: m_Enabled
@@ -333,6 +333,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: healthText
       objectReference: {fileID: 0}
+    - target: {fileID: 8686172077989140751, guid: f4a94efbf476595478b19390bbd97bbd, type: 3}
+      propertyPath: m_text
+      value: 500
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
@@ -394,5 +398,3 @@ MonoBehaviour:
   fillImage: {fileID: 8666411796200531416}
   captureUI: {fileID: 8353179092410970246}
   captureVisual: {fileID: 2789165877422624570}
-  neutralColor: {r: 1, g: 1, b: 1, a: 1}
-  captureVisualRenderer: {fileID: 0}

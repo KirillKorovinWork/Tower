@@ -1,169 +1,522 @@
-using UnityEngine;
+п»їusing UnityEngine;
+using UnityEngine.AI;
 using TMPro;
 using System.Collections;
+using System.Collections.Generic;
 
 public class Tank : TeamObject
 {
+    // Р”Р»СЏ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё СЃ РјРµРЅРµРґР¶РµСЂР°РјРё
+    public enum TankState { Exploring, Attacking, Defending }
+
+    // FSM СЃРѕСЃС‚РѕСЏРЅРёСЏ
+    private enum MainState { Exploring, Attacking, Defending }
+    private enum ExploringSubState { Normal, Stuck, IdleWander }
+    private enum AttackingSubState { Aggressive, Retreating, Flanking }
+    private enum DefendingSubState { HoldPosition, PursueEnemy }
+
+    [Header("UI")]
     public TextMeshProUGUI healthText;
+    public TextMeshProUGUI stateText;
+    public Camera tankCamera;
 
+    [Header("NavMesh")]
     public float speed = 5f;
-    public float speedLessHP = 2f;
-    public float rotationSpeed = 180f;
-    public int minCubesToCapture = 5;
-    public int maxCubesToCapture = 10;
-    public int rayLenght = 2;
+    public float stoppingDistance = 1.5f;
+    public float attackStopDistance = 2.5f;
 
-    private int capturedCubes = 0;
-    private int cubesToCapture;
-    private bool isMoving = true;
+    [Header("AI")]
+    public float lowHealthPercent = 0.3f;
+    public float highHealthPercent = 0.7f;
+    public float stuckDistanceThreshold = 0.5f;
+    public float stuckDistanceDuration = 2f;
+    public float explorationStep = 5f;
+    public float maxExplorationRadius = 30f;
+    public float idleWanderTime = 3f; // РЎРєРѕР»СЊРєРѕ СЃРµРєСѓРЅРґ СЃС‚РѕСЏС‚СЊ Р±РµР· РґРµР»Р°, РїСЂРµР¶РґРµ С‡РµРј СЂР°Р·Р±РµР¶Р°С‚СЊСЃСЏ
 
-    public float sinkingSpeed = 0.5f; // Скорость опускания танка
-    public float sinkingDepth = -1f; // Глубина, на которой танк будет уничтожен
+    // FSM State
+    private MainState currentMainState = MainState.Exploring;
+    private ExploringSubState exploringSubState = ExploringSubState.Normal;
+    private AttackingSubState attackingSubState = AttackingSubState.Aggressive;
+    private DefendingSubState defendingSubState = DefendingSubState.HoldPosition;
 
-    private bool isSinking = false; // Флаг для проверки, начал ли танк опускатьс
+    // Internal
+    private NavMeshAgent navMeshAgent;
+    private Turret turret;
+    private Transform target;
+    private Vector3 explorationCenter = Vector3.zero;
+    private float explorationRadius = 5f;
+    private float stuckDistanceTime = 0f;
+    private float lastDistanceToTarget = 0f;
+    private bool isSinking = false;
+    private float noMoveTime = 0f;
+    private Vector3 lastPosition = Vector3.zero;
+
+    // Р”Р»СЏ СЂР°Р·РґРµР»РµРЅРёСЏ С†РµР»РµР№ РјРµР¶РґСѓ С‚Р°РЅРєР°РјРё
+    private static Dictionary<int, int> cubeAssignments = new Dictionary<int, int>();
+    private const int maxTanksPerCube = 1;
 
     void Start()
     {
         SetTeamColor();
-        cubesToCapture = Random.Range(minCubesToCapture, maxCubesToCapture + 1);
+        navMeshAgent = GetComponent<NavMeshAgent>();
+        navMeshAgent.speed = speed;
+        navMeshAgent.stoppingDistance = stoppingDistance;
+        navMeshAgent.autoBraking = true;
+        turret = GetComponentInChildren<Turret>();
+        ShowState();
+        CameraManager cameraManager = FindObjectOfType<CameraManager>();
+        if (cameraManager != null) cameraManager.AddTankCamera(tankCamera);
+        StartCoroutine(StateHandler());
     }
 
     void Update()
     {
-        if (isMoving && !destroyed)
-        {
-            MoveForward();
-            DetectObstacle();
+        UpdateHealthUI();
+        if (destroyed && !isSinking)
+            StartCoroutine(SinkAndDestroy());
 
-            healthText.text = health.ToString();
+        // РџСЂРѕРІРµСЂРєР° stuck РїРѕ СЂР°СЃСЃС‚РѕСЏРЅРёСЋ РґРѕ С†РµР»Рё
+        if (currentMainState == MainState.Exploring && target != null)
+        {
+            float distance = Vector3.Distance(transform.position, target.position);
+            if (Mathf.Abs(distance - lastDistanceToTarget) < stuckDistanceThreshold)
+            {
+                stuckDistanceTime += Time.deltaTime;
+                if (stuckDistanceTime > stuckDistanceDuration)
+                    exploringSubState = ExploringSubState.Stuck;
+            }
+            else
+                stuckDistanceTime = 0;
+            lastDistanceToTarget = distance;
         }
 
-        if (destroyed)
+        // РџСЂРѕРІРµСЂРєР° вЂ” РµСЃР»Рё РЅРµ РґРІРёРіР°РµС‚СЃСЏ РїРѕ РїРѕР·РёС†РёРё
+        if (currentMainState == MainState.Exploring)
         {
-            healthText.text = "X";
-            if (!isSinking) 
+            if (Vector3.Distance(transform.position, lastPosition) < 0.05f)
+                noMoveTime += Time.deltaTime;
+            else
+                noMoveTime = 0f;
+
+            lastPosition = transform.position;
+
+            if (noMoveTime > idleWanderTime)
             {
-                StartCoroutine(SinkAndDestroy());
+                exploringSubState = ExploringSubState.IdleWander;
+                noMoveTime = 0f;
             }
-            
         }
     }
 
-    private void MoveForward()
+    private IEnumerator StateHandler()
     {
-        if (health < 50)
+        while (!destroyed)
         {
-            transform.Translate(Vector3.forward * speed * Time.deltaTime);
+            switch (currentMainState)
+            {
+                case MainState.Exploring: ExploringFSM(); break;
+                case MainState.Attacking: AttackingFSM(); break;
+                case MainState.Defending: DefendingFSM(); break;
+            }
+            ShowState();
+            yield return new WaitForSeconds(0.5f);
+        }
+    }
+
+    #region FSM LOGIC
+
+    void ExploringFSM()
+    {
+        switch (exploringSubState)
+        {
+            case ExploringSubState.Normal:
+                if (explorationCenter == Vector3.zero) SetExplorationCenter();
+                if (target == null || navMeshAgent.remainingDistance <= stoppingDistance)
+                    SetExplorationTarget();
+                // Р•СЃР»Рё СЂСЏРґРѕРј РІСЂР°Рі вЂ” РїРµСЂРµС…РѕРґ РІ Р°С‚Р°РєСѓ
+                var enemy = FindClosestEnemy();
+                if (enemy != null && Vector3.Distance(transform.position, enemy.position) < 10f)
+                    SetState(MainState.Attacking, enemy);
+                break;
+            case ExploringSubState.Stuck:
+                SetExplorationTarget();
+                exploringSubState = ExploringSubState.Normal;
+                stuckDistanceTime = 0;
+                break;
+            case ExploringSubState.IdleWander:
+                // Р”РµР»Р°РµРј РЅРµР±РѕР»СЊС€РѕР№ СЂР°Р·Р±РµРі (wander) РІ СЃР»СѓС‡Р°Р№РЅСѓСЋ РґРѕСЃС‚РёР¶РёРјСѓСЋ С‚РѕС‡РєСѓ РїРѕР±Р»РёР·РѕСЃС‚Рё
+                for (int i = 0; i < 10; i++)
+                {
+                    Vector2 randomPoint = Random.insideUnitCircle * 5f;
+                    Vector3 wanderPosition = transform.position + new Vector3(randomPoint.x, 0, randomPoint.y);
+                    if (IsReachable(wanderPosition))
+                    {
+                        navMeshAgent.SetDestination(wanderPosition);
+                        Debug.Log($"{gameObject.name}: Wandering due to idle");
+                        break;
+                    }
+                }
+                exploringSubState = ExploringSubState.Normal;
+                break;
+        }
+    }
+
+    void AttackingFSM()
+    {
+        // РџСЂРѕРІРµСЂРєР° РґРѕСЃС‚РёР¶РёРјРѕСЃС‚Рё С†РµР»Рё
+        if (target == null || !IsReachable(target.position))
+        {
+            // РќРµС‚ С†РµР»Рё РёР»Рё РѕРЅР° РЅРµРґРѕСЃС‚РёР¶РёРјР° вЂ” РёРґС‘Рј РёСЃСЃР»РµРґРѕРІР°С‚СЊ РґР°Р»СЊС€Рµ!
+            SetState(MainState.Exploring, null);
+            SetExplorationTarget();
+            return;
+        }
+
+        Tank enemyTank = target.GetComponent<Tank>();
+        if (enemyTank == null || enemyTank.destroyed)
+        {
+            SetState(MainState.Exploring, null);
+            SetExplorationTarget();
+            return;
+        }
+
+        float myPercent = Mathf.Clamp01((float)health / 100f);
+        float enemyPercent = (enemyTank.health > 0) ? Mathf.Clamp01((float)enemyTank.health / 100f) : 0f;
+        float distance = Vector3.Distance(transform.position, target.position);
+
+        if (myPercent < lowHealthPercent)
+            attackingSubState = AttackingSubState.Retreating;
+        else if (myPercent > highHealthPercent && enemyPercent < lowHealthPercent)
+            attackingSubState = AttackingSubState.Aggressive;
+        else if (enemyPercent > myPercent * 1.3f)
+            attackingSubState = AttackingSubState.Flanking;
+        else
+            attackingSubState = AttackingSubState.Aggressive;
+
+        switch (attackingSubState)
+        {
+            case AttackingSubState.Aggressive:
+                navMeshAgent.isStopped = false;
+                if (distance > attackStopDistance)
+                    navMeshAgent.SetDestination(target.position);
+                else
+                    navMeshAgent.isStopped = true;
+                break;
+
+            case AttackingSubState.Retreating:
+                var basePos = FindNearestFriendlyHangar();
+                if (basePos != null && IsReachable(basePos.position))
+                {
+                    navMeshAgent.SetDestination(basePos.position);
+                    navMeshAgent.isStopped = false;
+                }
+                else
+                {
+                    SetState(MainState.Exploring, null);
+                    SetExplorationTarget();
+                }
+                break;
+
+            case AttackingSubState.Flanking:
+                Vector3 dir = (transform.position - enemyTank.transform.position).normalized;
+                Vector3 flankPos = transform.position + Quaternion.Euler(0, 90, 0) * dir * 7f;
+                if (IsReachable(flankPos))
+                {
+                    navMeshAgent.SetDestination(flankPos);
+                    navMeshAgent.isStopped = false;
+                }
+                else
+                {
+                    SetState(MainState.Exploring, null);
+                    SetExplorationTarget();
+                }
+                break;
+        }
+    }
+
+    void DefendingFSM()
+    {
+        switch (defendingSubState)
+        {
+            case DefendingSubState.HoldPosition:
+                var friendly = FindNearestFriendlyHangar();
+                if (friendly != null && IsReachable(friendly.position))
+                {
+                    navMeshAgent.SetDestination(friendly.position);
+                    navMeshAgent.isStopped = false;
+                }
+                var enemy = FindClosestEnemy();
+                if (enemy != null && Vector3.Distance(transform.position, enemy.position) < 12f)
+                {
+                    defendingSubState = DefendingSubState.PursueEnemy;
+                    target = enemy;
+                }
+                break;
+            case DefendingSubState.PursueEnemy:
+                if (target != null && IsReachable(target.position))
+                {
+                    navMeshAgent.SetDestination(target.position);
+                    navMeshAgent.isStopped = false;
+                    if (Vector3.Distance(transform.position, target.position) > 15f)
+                        defendingSubState = DefendingSubState.HoldPosition;
+                }
+                else
+                    defendingSubState = DefendingSubState.HoldPosition;
+                break;
+        }
+    }
+
+    #endregion
+
+    #region STATE SETTERS
+
+    // Р”Р»СЏ FSM
+    private void SetState(MainState mainState, Transform newTarget = null)
+    {
+        currentMainState = mainState;
+        target = newTarget;
+        if (mainState == MainState.Exploring)
+            exploringSubState = ExploringSubState.Normal;
+        if (mainState == MainState.Attacking)
+            attackingSubState = AttackingSubState.Aggressive;
+        if (mainState == MainState.Defending)
+            defendingSubState = DefendingSubState.HoldPosition;
+    }
+
+    // Р”Р»СЏ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё СЃРѕ СЃС‚Р°СЂС‹РјРё РјРµРЅРµРґР¶РµСЂР°РјРё
+    public void SetState(TankState newState, Transform newTarget, float stopDist = 0f)
+    {
+        switch (newState)
+        {
+            case TankState.Exploring: SetState(MainState.Exploring, newTarget); break;
+            case TankState.Attacking: SetState(MainState.Attacking, newTarget); break;
+            case TankState.Defending: SetState(MainState.Defending, newTarget); break;
+        }
+        if (navMeshAgent != null && !destroyed && newTarget != null)
+        {
+            navMeshAgent.SetDestination(newTarget.position);
+            navMeshAgent.stoppingDistance = stopDist;
+            navMeshAgent.isStopped = false;
+        }
+    }
+
+    // Р”Р»СЏ СЃРѕРІРјРµСЃС‚РёРјРѕСЃС‚Рё: РїРµСЂРµРјРµС‰РµРЅРёРµ РЅР° РѕР±РѕСЂРѕРЅРёС‚РµР»СЊРЅСѓСЋ РїРѕР·РёС†РёСЋ
+    public void SetDefensivePosition(Vector3 position)
+    {
+        if (navMeshAgent != null && !destroyed)
+        {
+            navMeshAgent.SetDestination(position);
+            navMeshAgent.stoppingDistance = 1.5f;
+            navMeshAgent.isStopped = false;
+        }
+    }
+
+    #endregion
+
+    #region HELPERS
+
+    private void UpdateHealthUI()
+    {
+        if (healthText != null)
+            healthText.text = destroyed ? "X" : health.ToString();
+    }
+
+    private void ShowState()
+    {
+        if (stateText == null) return;
+        string s = currentMainState.ToString();
+        switch (currentMainState)
+        {
+            case MainState.Exploring: s += $" ({exploringSubState})"; break;
+            case MainState.Attacking: s += $" ({attackingSubState})"; break;
+            case MainState.Defending: s += $" ({defendingSubState})"; break;
+        }
+        stateText.text = s;
+    }
+
+    private void SetExplorationCenter()
+    {
+        TankHangar[] hangars = FindObjectsOfType<TankHangar>();
+        float minDist = Mathf.Infinity;
+        Transform closest = null;
+        foreach (var hangar in hangars)
+        {
+            if (hangar.team == team && !hangar.destroyed)
+            {
+                float dist = Vector3.Distance(transform.position, hangar.transform.position);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    closest = hangar.transform;
+                }
+            }
+        }
+        if (closest != null)
+            explorationCenter = closest.position;
+    }
+
+    private void OnDestroy()
+    {
+        // Р•СЃР»Рё СѓРјРёСЂР°Р» РёР»Рё РјРµРЅСЏР» С†РµР»СЊ, СЃРЅРёРјР°РµРј "РЅР°Р·РЅР°С‡РµРЅРёРµ"
+        if (target != null && target.CompareTag("Cube"))
+        {
+            int id = target.gameObject.GetInstanceID();
+            if (cubeAssignments.ContainsKey(id))
+            {
+                cubeAssignments[id] = Mathf.Max(0, cubeAssignments[id] - 1);
+                if (cubeAssignments[id] == 0)
+                    cubeAssignments.Remove(id);
+            }
+        }
+    }
+
+    private void SetExplorationTarget()
+    {
+        // РЎРЅРёРјР°РµРј СЃС‚Р°СЂРѕРµ РЅР°Р·РЅР°С‡РµРЅРёРµ
+        if (target != null && target.CompareTag("Cube"))
+        {
+            int id = target.gameObject.GetInstanceID();
+            if (cubeAssignments.ContainsKey(id))
+            {
+                cubeAssignments[id] = Mathf.Max(0, cubeAssignments[id] - 1);
+                if (cubeAssignments[id] == 0)
+                    cubeAssignments.Remove(id);
+            }
+        }
+
+        Transform explorationTarget = FindBestExplorationTarget();
+        if (explorationTarget != null)
+        {
+            target = explorationTarget;
+            navMeshAgent.SetDestination(target.position);
+
+            // РћР±РЅРѕРІР»СЏРµРј РЅРѕРІС‹Р№ assignment
+            int id = target.gameObject.GetInstanceID();
+            if (!cubeAssignments.ContainsKey(id))
+                cubeAssignments[id] = 0;
+            cubeAssignments[id]++;
         }
         else
         {
-            transform.Translate(Vector3.forward * speed * Time.deltaTime);
-        }
-    }
-
-    private void DetectObstacle()
-    {
-        RaycastHit hit;
-        Vector3 forward = transform.forward;
-
-        // Визуализация луча
-        Debug.DrawRay(transform.position, forward * rayLenght, Color.green);
-
-        if (Physics.Raycast(transform.position, transform.forward, out hit, rayLenght))
-        {
-            if ((hit.collider.CompareTag("Cube") && hit.collider.GetComponent<Cube>().team != team))
+            // fallback: random nearby position
+            if (explorationRadius < maxExplorationRadius)
+                explorationRadius += explorationStep;
+            else
             {
-                TurnAround();
-            }
-
-            if (hit.collider.CompareTag("Wall"))
-            {
-                TurnAround();
-            }
-        }
-        // Луч под углом 45 градусов вправо
-        RaycastHit hitRight;
-        Vector3 rightDirection = Quaternion.Euler(0, 45f, 0) * transform.forward;
-        Debug.DrawRay(transform.position, rightDirection * rayLenght, Color.green);
-        if (Physics.Raycast(transform.position, rightDirection, out hitRight, rayLenght))
-        {
-
-            if (hitRight.collider.CompareTag("Cube") && hitRight.collider.GetComponent<Cube>().team != team)
-            {
-                TurnAround();
-
-            }
-            if (hitRight.collider.CompareTag("Wall"))
-            {
-                TurnAround();
-                return;
-            }
-        }
-
-        // Луч под углом 45 градусов влево
-        RaycastHit hitLeft;
-        Vector3 leftDirection = Quaternion.Euler(0, -45f, 0) * transform.forward;
-        Debug.DrawRay(transform.position, leftDirection * rayLenght, Color.green);
-        if (Physics.Raycast(transform.position, leftDirection, out hitLeft, rayLenght))
-        {
-
-            if (hitLeft.collider.CompareTag("Cube") && hitLeft.collider.GetComponent<Cube>().team != team)
-            {
-                TurnAround();
-            }
-            if (hitLeft.collider.CompareTag("Wall"))
-            {
-                TurnAround();
-                return;
-            }
-        }
-    }
-
-    private void TurnAround()
-    {
-        isMoving = false;
-        // Вращение на 180 градусов в произвольную сторону
-        float rotationAngle = Random.Range(0, 2) == 0 ? Random.Range(110f, 250f) : Random.Range(-110f, -250f);
-        transform.Rotate(Vector3.up, rotationAngle);
-        isMoving = true;
-    }
-
-    private void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag("Cube") && !destroyed)
-        {
-            Cube cube = other.GetComponent<Cube>();
-            if (cube != null && cube.team != team)
-            {
-                capturedCubes++;
-                //cube.team = team;
-                //cube.SetTeamColor();
-                //CubeManager.Instance.IncreaseTeamCount(team);
-
-                if (capturedCubes >= cubesToCapture)
+                for (int i = 0; i < 10; i++)
                 {
-                    TurnAround();
-                    capturedCubes = 0;
-                    cubesToCapture = Random.Range(minCubesToCapture, maxCubesToCapture + 1);
+                    Vector2 randomPoint = Random.insideUnitCircle * explorationRadius;
+                    Vector3 newTargetPosition = explorationCenter + new Vector3(randomPoint.x, 0, randomPoint.y);
+                    if (IsReachable(newTargetPosition))
+                    {
+                        navMeshAgent.SetDestination(newTargetPosition);
+                        break;
+                    }
                 }
             }
         }
     }
 
-    private IEnumerator SinkAndDestroy()
+    private bool IsReachable(Vector3 point)
     {
-        isSinking = true; // Устанавливаем флаг, что процесс опускания начат
+        NavMeshPath path = new NavMeshPath();
+        if (navMeshAgent.CalculatePath(point, path))
+            return path.status == NavMeshPathStatus.PathComplete;
+        return false;
+    }
 
-        yield return new WaitForSeconds(5);
+    private Transform FindBestExplorationTarget()
+    {
+        GameObject[] cubes = GameObject.FindGameObjectsWithTag("Cube");
+        Transform bestCube = null;
+        float minDist = Mathf.Infinity;
 
-        // Опускаем танк до заданной глубины
-        while (transform.position.y > sinkingDepth)
+        // 1. РС‰РµРј Р±Р»РёР¶Р°Р№С€РёР№ РґРѕСЃС‚РёР¶РёРјС‹Р№ РЅРµР·Р°С…РІР°С‡РµРЅРЅС‹Р№ (РЅРµР№С‚СЂР°Р»СЊРЅС‹Р№) Рё РЅРµ Р·Р°РЅСЏС‚С‹Р№
+        foreach (var cube in cubes)
         {
-            transform.position += Vector3.down * sinkingSpeed * Time.deltaTime;
-            yield return null; // Ждем один кадр, чтобы сделать опускание плавным
+            Cube c = cube.GetComponent<Cube>();
+            int id = cube.GetInstanceID();
+            int assigned = cubeAssignments.ContainsKey(id) ? cubeAssignments[id] : 0;
+            if (c != null && c.team == Team.None && assigned < maxTanksPerCube && IsReachable(cube.transform.position))
+            {
+                float dist = Vector3.Distance(transform.position, cube.transform.position);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    bestCube = cube.transform;
+                }
+            }
         }
 
-        Destroy(gameObject); // Уничтожаем танк после опускания
+        // 2. Р•СЃР»Рё РЅРµР№С‚СЂР°Р»СЊРЅС‹С… РЅРµС‚ вЂ” РёС‰РµРј Р±Р»РёР¶Р°Р№С€РёР№ РґРѕСЃС‚РёР¶РёРјС‹Р№ РІСЂР°Р¶РµСЃРєРёР№ Рё РЅРµ Р·Р°РЅСЏС‚С‹Р№
+        if (bestCube == null)
+        {
+            foreach (var cube in cubes)
+            {
+                Cube c = cube.GetComponent<Cube>();
+                int id = cube.GetInstanceID();
+                int assigned = cubeAssignments.ContainsKey(id) ? cubeAssignments[id] : 0;
+                if (c != null && c.team != team && assigned < maxTanksPerCube && IsReachable(cube.transform.position))
+                {
+                    float dist = Vector3.Distance(transform.position, cube.transform.position);
+                    if (dist < minDist)
+                    {
+                        minDist = dist;
+                        bestCube = cube.transform;
+                    }
+                }
+            }
+        }
+        return bestCube;
     }
-}
 
+    private Transform FindClosestEnemy()
+    {
+        Tank[] allTanks = FindObjectsOfType<Tank>();
+        float minDist = Mathf.Infinity;
+        Transform closest = null;
+        foreach (var t in allTanks)
+        {
+            if (t.team != team && !t.destroyed)
+            {
+                float d = Vector3.Distance(transform.position, t.transform.position);
+                if (d < minDist)
+                {
+                    minDist = d;
+                    closest = t.transform;
+                }
+            }
+        }
+        return closest;
+    }
+
+    private Transform FindNearestFriendlyHangar()
+    {
+        TankHangar[] hangars = FindObjectsOfType<TankHangar>();
+        float minDist = Mathf.Infinity;
+        Transform closest = null;
+        foreach (var hangar in hangars)
+        {
+            if (hangar.team == team && !hangar.destroyed)
+            {
+                float dist = Vector3.Distance(transform.position, hangar.transform.position);
+                if (dist < minDist)
+                {
+                    minDist = dist;
+                    closest = hangar.transform;
+                }
+            }
+        }
+        return closest;
+    }
+
+    private IEnumerator SinkAndDestroy()
+    {
+        isSinking = true;
+        navMeshAgent.enabled = false;
+        yield return new WaitForSeconds(3f);
+        Destroy(gameObject);
+    }
+    #endregion
+}

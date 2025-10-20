@@ -70,7 +70,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc883fafded58c9438d2d8158de2a1d9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  health: 50
+  health: 500
   destroyed: 0
   team: 0
   teamRenderers:
@@ -110,6 +110,7 @@ MonoBehaviour:
   rayLenght: 2
   sinkingSpeed: 0.5
   sinkingDepth: -1
+  tankCamera: {fileID: 0}
 --- !u!135 &6025598478746331897
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -750,7 +751,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 50
+  m_text: 500
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

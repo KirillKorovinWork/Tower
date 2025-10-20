@@ -15,7 +15,6 @@ public class CubeManager : MonoBehaviour
     public TextMeshProUGUI greenTeamText;
     public TextMeshProUGUI yellowTeamText;
 
-
     void Awake()
     {
         // Singleton для простоты доступа к менеджеру
@@ -47,8 +46,6 @@ public class CubeManager : MonoBehaviour
                 yellowCubes++;
                 break;
         }
-        //Debug.Log($"Red: {redCubes}, Blue: {blueCubes}, Green: {greenCubes}, Yellow: {yellowCubes}");
-
         TextUpdate();
     }
 
@@ -69,17 +66,25 @@ public class CubeManager : MonoBehaviour
                 yellowCubes--;
                 break;
         }
-        //Debug.Log($"Red: {redCubes}, Blue: {blueCubes}, Green: {greenCubes}, Yellow: {yellowCubes}");
-
         TextUpdate();
     }
 
-    private void TextUpdate() 
+    private void TextUpdate()
     {
-        redTeamText.text = "Team 1: " + redCubes.ToString();
-        blueTeamText.text = "Team 2: " + blueCubes.ToString();
-        greenTeamText.text = "Team 3: " + greenCubes.ToString();
-        yellowTeamText.text = "Team 4: " + yellowCubes.ToString();
+        // Определяем лидирующую команду
+        int maxCubes = Mathf.Max(redCubes, blueCubes, greenCubes, yellowCubes);
+
+        UpdateTeamText(redTeamText, redCubes, maxCubes);
+        UpdateTeamText(blueTeamText, blueCubes, maxCubes);
+        UpdateTeamText(greenTeamText, greenCubes, maxCubes);
+        UpdateTeamText(yellowTeamText, yellowCubes, maxCubes);
+    }
+
+    private void UpdateTeamText(TextMeshProUGUI teamText, int teamCubes, int maxCubes)
+    {
+        teamText.text = $"Team: {teamCubes}";
+        // Увеличиваем размер текста, если команда лидирует
+        teamText.fontSize = (teamCubes == maxCubes && teamCubes > 0) ? 50 : 40;
     }
 
     public int GetTeamCubeCount(TeamObject.Team team)
